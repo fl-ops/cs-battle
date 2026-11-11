@@ -24,26 +24,46 @@ class YandexSDKService {
 
   // 1. Инициализация SDK
   async init() {
+    // Проверяем, запущена ли игра внутри платформы Яндекс (в iframe или на домене яндекса)
+    const isYandexDomain = typeof window !== 'undefined' && (
+      window.location.hostname.includes('yandex.') ||
+      window.location.hostname.includes('ydns.') ||
+      window.location.search.includes('yandex')
+    );
+    const isInIframe = typeof window !== 'undefined' && window.parent && window.parent !== window;
+
+    // Если игра открыта вне Яндекс Игр (например, на GitHub Pages, localhost и т.д.),
+    // YaGames.init() на внешнем домене зависнет в ожидании родительского фрейма.
+    // Поэтому на GitHub Pages переключаемся в автономный режим сразу без блокировки.
+    if (typeof YaGames === 'undefined' || (!isYandexDomain && !isInIframe)) {
+      console.log('[SDK] Автономный режим (запуск на GitHub Pages / Standalone). Включено локальное хранилище.');
+      this.isInitialized = false;
+      return false;
+    }
+
     try {
-      if (typeof YaGames !== 'undefined') {
-        this.ysdk = await YaGames.init();
-        console.log('[Yandex SDK] Успешно инициализирован');
+      // Защитный таймаут 2.5 сек на случай сбоя или зависания handshake с iframe
+      const initPromise = YaGames.init();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Yandex SDK timeout')), 2500)
+      );
 
-        // Инициализация игрока
-        await this.initPlayer();
+      this.ysdk = await Promise.race([initPromise, timeoutPromise]);
+      console.log('[Yandex SDK] Успешно инициализирован');
 
-        // Уведомляем платформу, что игра готова
-        this.notifyGameReady();
+      // Инициализация игрока с таймаутом
+      await Promise.race([
+        this.initPlayer(),
+        new Promise(resolve => setTimeout(resolve, 1500))
+      ]);
 
-        this.isInitialized = true;
-        return true;
-      } else {
-        console.warn('[Yandex SDK] YaGames не найден, включен локальный режим разработчика');
-        this.isInitialized = false;
-        return false;
-      }
+      // Уведомляем платформу, что игра готова
+      this.notifyGameReady();
+
+      this.isInitialized = true;
+      return true;
     } catch (e) {
-      console.error('[Yandex SDK] Ошибка инициализации:', e);
+      console.warn('[Yandex SDK] Автономный режим (SDK не ответил):', e.message || e);
       this.isInitialized = false;
       return false;
     }

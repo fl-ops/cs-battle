@@ -37,20 +37,35 @@ class DropDropApp {
   async start() {
     console.log('[ДРОП ДРОП] Запуск игры...');
 
-    // Инициализация Yandex SDK
-    await window.yandexSDK.init();
+    try {
+      // Инициализация SDK с защитой от зависания
+      await Promise.race([
+        window.yandexSDK.init(),
+        new Promise(resolve => setTimeout(resolve, 3000))
+      ]);
+    } catch (e) {
+      console.warn('[ДРОП ДРОП] Предупреждение SDK:', e);
+    }
 
-    // Загрузка сохраненных данных игрока
-    await this.loadGameState();
+    try {
+      // Загрузка сохраненных данных игрока
+      await this.loadGameState();
+    } catch (e) {
+      console.warn('[ДРОП ДРОП] Ошибка загрузки сохранений:', e);
+    }
 
-    // Настройка интерфейса и слушателей
-    this.initUI();
-    this.renderHeader();
-    this.renderCasesList('all');
-    this.renderInventory();
-    this.renderBattlesSetup();
-    this.renderUpgrader();
-    this.renderContracts();
+    // Настройка интерфейса и слушателей (всегда выполняется)
+    try {
+      this.initUI();
+      this.renderHeader();
+      this.renderCasesList('all');
+      this.renderInventory();
+      this.renderBattlesSetup();
+      this.renderUpgrader();
+      this.renderContracts();
+    } catch (e) {
+      console.error('[ДРОП ДРОП] Критическая ошибка рендера интерфейса:', e);
+    }
 
     // Запуск автосохранения каждые 30 секунд
     setInterval(() => {

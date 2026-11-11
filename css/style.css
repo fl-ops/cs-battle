@@ -186,6 +186,11 @@ body {
   border-bottom: 1px solid var(--border-color);
   overflow-x: auto;
   white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.navigation-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-btn {
@@ -243,6 +248,11 @@ body {
   margin-bottom: 24px;
   overflow-x: auto;
   padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cases-filter-bar::-webkit-scrollbar {
+  display: none;
 }
 
 .case-filter-btn {
