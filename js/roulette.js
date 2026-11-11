@@ -14,8 +14,8 @@ class RouletteEngine {
     this.fastOpen = false;
     this.multiCount = 1; // 1, 2, 3, 4, 5
     this.currentCase = null;
-    this.totalItems = 80; // Всего скинов на полосе (хватает для любых широких и мобильных экранов)
-    this.winIndex = 52; // Индекс победного предмета (52 предмета прокрутки + 28 в запасе справа)
+    this.totalItems = 80; // Всего 80 предметов в ленте
+    this.winIndex = 45; // Победный предмет на 45 позиции (45 для прокрутки + 34 предмета гарантированного запаса справа)
     this.lastDropResults = [];
   }
 
@@ -129,7 +129,7 @@ class RouletteEngine {
     // 2. Двойной RAF гарантирует, что браузер завершил render, layout и знает точные размеры
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-    // 3. Вычисляем физические координаты выигрышной карточки прямо из DOM
+    // 3. Вычисляем физические координаты выигрышной карточки прямо из DOM через getBoundingClientRect
     spinsData.forEach(s => {
       const container = document.getElementById(s.id);
       if (!container) return;
@@ -137,10 +137,14 @@ class RouletteEngine {
       if (!track) return;
 
       const winnerCard = container.querySelector('.winner-target');
-      // offsetLeft возвращает реальное физическое положение победителя в пикселях с учетом отступов
-      const cardLeft = winnerCard ? winnerCard.offsetLeft : (this.winIndex * 132 + 10);
-      const cardWidth = winnerCard ? winnerCard.offsetWidth : 120;
-      const containerWidth = container.clientWidth || container.offsetWidth || 360;
+      const trackRect = track.getBoundingClientRect();
+      const cardRect = winnerCard ? winnerCard.getBoundingClientRect() : null;
+      const containerRect = container.getBoundingClientRect();
+
+      // Точнейшее физическое смещение карточки относительно начала трека без погрешностей offsetParent
+      const cardLeft = (cardRect && trackRect) ? (cardRect.left - trackRect.left) : (this.winIndex * 132 + 10);
+      const cardWidth = cardRect ? cardRect.width : 120;
+      const containerWidth = (containerRect && containerRect.width > 0) ? containerRect.width : (container.clientWidth || 360);
 
       const cardCenter = cardLeft + (cardWidth / 2);
       const containerCenter = containerWidth / 2;
