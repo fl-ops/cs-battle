@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ДРОП ДРОП — CS Battle Web Edition</title>
+  
+  <!-- Yandex Games SDK v2 -->
+  <script src="https://yandex.ru/sdk/v2"></script>
+  
+  <!-- Стили приложения -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ==================== ШАПКА (HEADER) ==================== -->
+  <header class="main-header">
+    <div class="logo-area" onclick="window.app.switchTab('cases')">
+      <div class="logo-icon">📦</div>
+      <div class="logo-text">ДРОП ДРОП</div>
+      <div class="logo-tag">BATTLE</div>
+    </div>
+
+    <div class="header-right">
+      <!-- Инвентарь стоимость -->
+      <div class="user-stat-badge user-inv-group" title="Общая стоимость инвентаря">
+        <span>🎒</span>
+        <span id="user-inv-val">0</span>
+      </div>
+
+      <!-- Баланс в Дропах (🪙) -->
+      <div class="user-stat-badge user-coins-badge" title="Ваш баланс монет">
+        <span>🪙</span>
+        <span class="coins-val" id="user-coins-val">1,500</span>
+        <button class="btn-add-coins" id="btn-header-rewarded" onclick="window.app.watchRewardedForCoins()" title="Получить +1,500 🪙 за просмотр рекламы">+</button>
+      </div>
+
+      <!-- Уровень игрока -->
+      <div class="level-pill" id="user-level-badge">LVL 1</div>
+
+      <!-- Кнопка инфо -->
+      <button class="icon-btn" onclick="document.getElementById('about-modal').classList.add('modal-active')" title="Об игре и правила">ℹ️</button>
+
+      <!-- Кнопка звука -->
+      <button class="icon-btn" id="btn-sound-toggle" title="Включить / Выключить звук">🔊</button>
+    </div>
+  </header>
+
+  <!-- ==================== НАВИГАЦИЯ (TABS) ==================== -->
+  <nav class="navigation-bar">
+    <button class="nav-btn active" data-tab="cases">
+      <span>📦</span> Кейсы
+    </button>
+    <button class="nav-btn" data-tab="battles">
+      <span>⚔️</span> Кейс Батлы
+    </button>
+    <button class="nav-btn" data-tab="upgrader">
+      <span>⚡</span> Апгрейдер
+    </button>
+    <button class="nav-btn" data-tab="contracts">
+      <span>📜</span> Контракты
+    </button>
+    <button class="nav-btn" data-tab="inventory">
+      <span>🎒</span> Инвентарь
+    </button>
+    <button class="nav-btn" data-tab="bonuses">
+      <span>🎁</span> Бонусы
+    </button>
+  </nav>
+
+  <!-- ==================== ОСНОВНОЙ КОНТЕНТ ==================== -->
+  <main class="main-content">
+
+    <!-- 1. ВКЛАДКА: КЕЙСЫ -->
+    <section class="tab-view" id="view-cases">
+      <div class="cases-filter-bar">
+        <button class="case-filter-btn active" data-category="all">Все кейсы</button>
+        <button class="case-filter-btn" data-category="popular">🔥 Популярные</button>
+        <button class="case-filter-btn" data-category="budget">🪙 Бюджетные</button>
+        <button class="case-filter-btn" data-category="weapons">🔫 Оружие</button>
+        <button class="case-filter-btn" data-category="knives">🔪 Ножи и Перчатки</button>
+        <button class="case-filter-btn" data-category="exclusive">👑 Эксклюзив</button>
+      </div>
+
+      <div class="cases-grid" id="cases-grid">
+        <!-- Генерируется динамически из cases-data.js -->
+      </div>
+    </section>
+
+    <!-- 2. ВКЛАДКА: КЕЙС БАТЛЫ -->
+    <section class="tab-view" id="view-battles" style="display: none;">
+      <!-- Лобби батлов -->
+      <div class="battle-lobby-layout" id="battle-lobby-view">
+        <div class="battle-box">
+          <h3>1. Выберите кейсы для раундов батла</h3>
+          <div class="battle-cases-chips-grid" id="battle-cases-selector">
+            <!-- Список чипов кейсов -->
+          </div>
+        </div>
+
+        <div class="battle-box">
+          <h3>2. Создание дуэли</h3>
+          <div class="selected-rounds-container" id="selected-battle-rounds">
+            <!-- Выбранные раунды -->
+          </div>
+
+          <div class="battle-summary-panel">
+            <div class="cost-row">
+              <span>Стоимость участия:</span>
+              <span class="cost-highlight" id="battle-total-entry-cost">🪙 0</span>
+            </div>
+            <div class="cost-row">
+              <span>Режим игры:</span>
+              <select class="select-custom" id="battle-mode-select" onchange="window.caseBattleEngine.mode = this.value">
+                <option value="normal">Классический (Высший банк)</option>
+                <option value="crazy">Crazy Mode (Низший банк)</option>
+              </select>
+            </div>
+            <div class="cost-row">
+              <span>Участники:</span>
+              <select class="select-custom" id="battle-players-select" onchange="window.caseBattleEngine.playerCount = parseInt(this.value, 10)">
+                <option value="2">1 на 1 (2 игрока)</option>
+                <option value="3">1 на 1 на 1 (3 игрока)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="window.app.triggerStartBattle()">
+              ⚔️ НАЧАТЬ БАТЛ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Арена боя (активна во время батла) -->
+      <div class="battle-arena-view" id="battle-arena-view" style="display: none;">
+        <div class="battle-arena-header">
+          <div class="battle-round-indicator" id="battle-round-indicator">РАУНД 1</div>
+        </div>
+
+        <div class="battle-players-grid" id="battle-players-grid">
+          <!-- Колонки игроков -->
+        </div>
+
+        <div id="battle-arena-actions"></div>
+      </div>
+    </section>
+
+    <!-- 3. ВКЛАДКА: АПГРЕЙДЕР (CS BATTLE EDITION) -->
+    <section class="tab-view" id="view-upgrader" style="display: none;">
+      <!-- Главная арена апгрейдера: ВАШ СКИН | КОЛЕСО РУЛЕТКИ | ЖЕЛАННЫЙ СКИН -->
+      <div class="upgrader-arena">
+        <!-- Левая карточка: Ваш скин из инвентаря -->
+        <div class="upgrader-card-box upgrader-source-box">
+          <div class="upgrader-box-title">Ваш скин для апгрейда</div>
+          
+          <div id="upgrader-source-item-card" class="upgrader-selected-item-slot" onclick="window.app.focusUpgraderInventory()">
+            <div class="slot-placeholder">
+              <span class="slot-icon">🎒</span>
+              <span class="slot-text">Выберите скин из инвентаря ниже 👇</span>
+            </div>
+          </div>
+
+          <!-- Буст монетами (макс. +25% от цены скина) -->
+          <div class="coin-boost-panel" id="upgrader-coin-boost-panel">
+            <div class="coin-boost-header">
+              <span class="coin-boost-title">🪙 Буст монетами</span>
+              <span class="coin-boost-limit-tag">макс. +25%</span>
+            </div>
+
+            <!-- Быстрые процентные кнопки: 0%, 5%, 10%, 15%, 20%, 25% -->
+            <div class="coin-boost-chips" id="coin-boost-chips">
+              <button type="button" class="boost-chip active" data-pct="0" onclick="window.app.setUpgraderCoinBoost(0)">0%</button>
+              <button type="button" class="boost-chip" data-pct="5" onclick="window.app.setUpgraderCoinBoost(5)">+5%</button>
+              <button type="button" class="boost-chip" data-pct="10" onclick="window.app.setUpgraderCoinBoost(10)">+10%</button>
+              <button type="button" class="boost-chip" data-pct="15" onclick="window.app.setUpgraderCoinBoost(15)">+15%</button>
+              <button type="button" class="boost-chip" data-pct="20" onclick="window.app.setUpgraderCoinBoost(20)">+20%</button>
+              <button type="button" class="boost-chip" data-pct="25" onclick="window.app.setUpgraderCoinBoost(25)">+25%</button>
+            </div>
+
+            <!-- Ползунок точной настройки -->
+            <div class="coin-boost-slider-container">
+              <input type="range" class="coin-boost-range" id="coin-boost-range" min="0" max="25" step="1" value="0"
+                oninput="window.app.onCoinBoostSliderChange(this.value)">
+            </div>
+
+            <!-- Сводка: Скин + Монеты = Итого -->
+            <div class="coin-boost-calc-breakdown">
+              <div class="calc-row">
+                <span>Скин:</span>
+                <span id="boost-skin-val">🪙 0</span>
+              </div>
+              <div class="calc-row">
+                <span>Монеты (<span id="boost-pct-label">+0%</span>):</span>
+                <span id="boost-coins-val" style="color: var(--accent-gold); font-weight: 800;">+0 🪙</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="upgrader-stat-hint" id="upgrader-bet-summary">
+            Итоговая ставка: <b id="upgrader-current-bet-display" style="color: var(--accent-gold);">🪙 0</b>
+          </div>
+        </div>
+
+        <!-- Центральная карточка: Рулетка CS Battle -->
+        <div class="upgrader-card-box upgrader-wheel-box">
+          <div class="upgrader-wheel-container">
+            <canvas id="upgrader-canvas" width="280" height="280"></canvas>
+          </div>
+
+          <!-- Блок кнопок: ВЫБОР ШАНСА -->
+          <div class="upgrader-control-group">
+            <div class="upgrader-control-label">
+              <span>🎯 ВЫБОР ШАНСА ВЫИГРЫША</span>
+              <span class="control-label-hint">автоподбор скина</span>
+            </div>
+            <div class="upgrader-preset-pills" id="upgrader-chance-pills">
+              <button class="pill-btn" data-chance="5" onclick="window.app.selectUpgraderChance(5)">5%</button>
+              <button class="pill-btn" data-chance="10" onclick="window.app.selectUpgraderChance(10)">10%</button>
+              <button class="pill-btn" data-chance="25" onclick="window.app.selectUpgraderChance(25)">25%</button>
+              <button class="pill-btn active" data-chance="50" onclick="window.app.selectUpgraderChance(50)">50%</button>
+              <button class="pill-btn" data-chance="75" onclick="window.app.selectUpgraderChance(75)">75%</button>
+            </div>
+          </div>
+
+          <!-- Блок кнопок: ВЫБОР МНОЖИТЕЛЯ -->
+          <div class="upgrader-control-group">
+            <div class="upgrader-control-label">
+              <span>🚀 ПРИУМНОЖЕНИЕ СТОИМОСТИ</span>
+              <span class="control-label-hint">множитель цели</span>
+            </div>
+            <div class="upgrader-preset-pills" id="upgrader-multiplier-pills">
+              <button class="pill-btn" data-mult="1.5" onclick="window.app.selectUpgraderMultiplier(1.5)">x1.5</button>
+              <button class="pill-btn active" data-mult="2" onclick="window.app.selectUpgraderMultiplier(2)">x2</button>
+              <button class="pill-btn" data-mult="3" onclick="window.app.selectUpgraderMultiplier(3)">x3</button>
+              <button class="pill-btn" data-mult="5" onclick="window.app.selectUpgraderMultiplier(5)">x5</button>
+              <button class="pill-btn" data-mult="10" onclick="window.app.selectUpgraderMultiplier(10)">x10</button>
+              <button class="pill-btn" data-mult="20" onclick="window.app.selectUpgraderMultiplier(20)">x20</button>
+              <button class="pill-btn" data-mult="50" onclick="window.app.selectUpgraderMultiplier(50)">x50</button>
+            </div>
+          </div>
+
+          <!-- Большая кнопка запуска -->
+          <button class="btn btn-primary btn-upgrader-action" id="btn-spin-upgrader" onclick="window.app.triggerUpgradeSpin()">
+            ⚡ АПГРЕЙД
+          </button>
+        </div>
+
+        <!-- Правая карточка: Желанный целевой скин -->
+        <div class="upgrader-card-box upgrader-target-box">
+          <div class="upgrader-box-title">Желанный скин</div>
+          <div id="upgrader-selected-target">
+            <div class="target-chosen-box" style="border: 1px dashed var(--border-color); color: var(--text-muted);">
+              Выберите скин из каталога справа 👇
+            </div>
+          </div>
+          <div class="target-profit-badge" id="upgrader-profit-badge">
+            Выгода: <b style="color: var(--accent-cyan)">+0 🪙</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- Нижняя часть в стиле CS Battle: Слева ваш инвентарь | Справа каталог скинов -->
+      <div class="upgrader-tables-grid">
+        <!-- Левая колонка: Инвентарь игрока -->
+        <div class="battle-box upgrader-inv-column">
+          <div class="upgrader-catalog-header">
+            <div class="catalog-title-group">
+              <h3>🎒 Ваш инвентарь</h3>
+              <span class="catalog-count-badge" id="upgrader-my-inv-count">0 предметов</span>
+            </div>
+          </div>
+
+          <div class="upgrader-inv-items-grid" id="upgrader-my-inv-list">
+            <!-- Сетка предметов инвентаря игрока -->
+          </div>
+        </div>
+
+        <!-- Правая колонка: Каталог скинов для улучшения -->
+        <div class="battle-box upgrader-catalog-column">
+          <div class="upgrader-catalog-header">
+            <div class="catalog-title-group">
+              <h3>🎯 Каталог скинов</h3>
+              <span class="catalog-count-badge" id="upgrader-catalog-count">208 скинов</span>
+            </div>
+
+            <!-- Поиск и фильтры -->
+            <div class="upgrader-filters-group">
+              <input type="text" class="catalog-search-input" id="upgrader-search-input" placeholder="🔍 Поиск скина или оружия..."/>
+              <select class="select-custom" id="upgrader-rarity-filter">
+                <option value="all">Все редкости</option>
+                <option value="extraordinary">Ножи и Перчатки</option>
+                <option value="covert">Тайное (Красное)</option>
+                <option value="classified">Засекреченное (Розовое)</option>
+                <option value="restricted">Запрещенное (Фиолетовое)</option>
+                <option value="milspec">Армейское (Синее)</option>
+              </select>
+              <select class="select-custom" id="upgrader-sort-filter">
+                <option value="price_asc">Цена: по возрастанию</option>
+                <option value="price_desc">Цена: по убыванию</option>
+                <option value="chance_desc">Шанс: по убыванию</option>
+                <option value="chance_asc">Шанс: по возрастанию</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="targets-catalog-grid" id="upgrader-targets-catalog">
+            <!-- Сетка целевых скинов -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. ВКЛАДКА: КОНТРАКТЫ -->
+    <section class="tab-view" id="view-contracts" style="display: none;">
+      <div class="contracts-layout">
+        <div class="battle-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3>Выберите от 3 до 10 скинов из инвентаря</h3>
+            <span id="contract-selected-count" style="font-weight: 800; color: var(--accent-cyan);">0 / 10 предметов</span>
+          </div>
+          <div class="contract-items-grid" id="contracts-inventory-list">
+            <!-- Предметы для выбора -->
+          </div>
+        </div>
+
+        <div class="battle-box" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div>
+            <h3>Подписание контракта</h3>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+              Обменяйте несколько скинов на один предмет более высокой редкости. Чем дороже вложенные скины, тем ценнее будет результат!
+            </p>
+          </div>
+
+          <button class="btn btn-gold" style="width: 100%; padding: 16px;" onclick="window.app.triggerSignContract()">
+            ✍️ ПОДПИСАТЬ КОНТРАКТ
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ВКЛАДКА: ИНВЕНТАРЬ -->
+    <section class="tab-view" id="view-inventory" style="display: none;">
+      <div class="inventory-header-bar">
+        <div class="inventory-stats-group">
+          <div class="inv-stat-item">
+            <span class="inv-stat-label">Предметов:</span>
+            <span class="inv-stat-value" id="inv-count-badge">0 шт.</span>
+          </div>
+          <div class="inv-stat-item">
+            <span class="inv-stat-label">Стоимость:</span>
+            <span class="inv-stat-value" id="inv-total-price">🪙 0</span>
+          </div>
+        </div>
+
+        <div class="inventory-actions-group">
+          <select class="select-custom" id="inventory-rarity-filter">
+            <option value="all">Все редкости</option>
+            <option value="extraordinary">Экстраординарное (Ножи)</option>
+            <option value="covert">Тайное (Красное)</option>
+            <option value="classified">Засекреченное (Розовое)</option>
+            <option value="restricted">Запрещенное (Фиолетовое)</option>
+            <option value="milspec">Армейское (Синее)</option>
+          </select>
+
+          <button class="btn btn-secondary" onclick="window.app.sellDuplicateItems()">Продать дубликаты</button>
+          <button class="btn btn-gold" onclick="window.app.sellAllInventory()">💰 Продать всё</button>
+        </div>
+      </div>
+
+      <div class="inventory-grid" id="inventory-grid">
+        <!-- Сетка инвентаря -->
+      </div>
+    </section>
+
+    <!-- 6. ВКЛАДКА: БОНУСЫ -->
+    <section class="tab-view" id="view-bonuses" style="display: none;">
+      <div class="bonuses-grid">
+        <!-- Ежедневный бонус -->
+        <div class="bonus-card">
+          <div class="bonus-icon">🎁</div>
+          <div class="bonus-title">Ежедневный бонус</div>
+          <div class="bonus-desc">Заходите каждый день и получайте бесплатные +1,000 🪙!</div>
+          <button class="btn btn-primary" onclick="window.app.claimDailyBonus()">Забрать +1,000 🪙</button>
+        </div>
+
+        <!-- Видеореклама Yandex Rewarded -->
+        <div class="bonus-card">
+          <div class="bonus-icon">💎</div>
+          <div class="bonus-title">Бесплатные монеты</div>
+          <div class="bonus-desc">Посмотрите короткий ролик от Яндекс и получите +1,500 🪙 мгновенно!</div>
+          <button class="btn btn-gold" id="btn-bonus-rewarded" onclick="window.app.watchRewardedForCoins()">Смотреть (+1,500 🪙)</button>
+        </div>
+
+        <!-- Промокоды -->
+        <div class="bonus-card">
+          <div class="bonus-icon">🎟️</div>
+          <div class="bonus-title">Промокоды</div>
+          <div class="bonus-desc">Вводите секретные промокоды (попробуйте: DROP, CSBATTLE, YANDEX, LORE)</div>
+          <div class="promocode-form">
+            <input type="text" class="promocode-input" id="promocode-input" placeholder="ПРОМОКОД"/>
+            <button class="btn btn-primary" onclick="window.app.activatePromoCode(document.getElementById('promocode-input').value)">Ввести</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== МОДАЛЬНОЕ ОКНО: ОТКРЫТИЕ КЕЙСА ==================== -->
+  <div class="modal-overlay" id="case-open-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h2 id="modal-case-title">Кейс</h2>
+            <span id="modal-case-price" style="background: rgba(255, 215, 0, 0.15); border: 1px solid rgba(255, 215, 0, 0.4); color: var(--accent-gold); font-weight: 800; font-size: 13px; padding: 2px 8px; border-radius: 6px;">🪙 0</span>
+          </div>
+          <p id="modal-case-subtitle">Описание кейса</p>
+        </div>
+        <button class="modal-close-btn" onclick="window.app.closeCaseModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Область рулетки -->
+        <div class="roulette-wrapper" id="roulette-wheels-wrapper">
+          <!-- Дорожка рулетки вставляется динамически -->
+        </div>
+
+        <!-- Панель контролов открытия (1x..5x, fast open, кнопка) -->
+        <div class="spin-controls-bar">
+          <div class="multi-spin-selector">
+            <button class="multi-spin-btn active" data-count="1">1X</button>
+            <button class="multi-spin-btn" data-count="2">2X</button>
+            <button class="multi-spin-btn" data-count="3">3X</button>
+            <button class="multi-spin-btn" data-count="4">4X</button>
+            <button class="multi-spin-btn" data-count="5">5X</button>
+          </div>
+
+          <label class="fast-open-toggle">
+            <input type="checkbox" id="checkbox-fast-open">
+            <span>Быстрое открытие</span>
+          </label>
+
+          <button class="btn-open-case" id="btn-spin-case" onclick="window.app.triggerCaseSpin()">
+            ОТКРЫТЬ КЕЙС
+          </button>
+        </div>
+
+        <!-- Список всего содержимого кейса с ценами -->
+        <div>
+          <div class="case-content-title">Содержимое кейса</div>
+          <div class="possible-drops-grid" id="case-possible-drops">
+            <!-- Список возможных дропов -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== МОДАЛЬНОЕ ОКНО: ВЫПАВШИЙ ДРОП ==================== -->
+  <div class="modal-overlay" id="drop-result-modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <h2>🎉 ВАШ ВЫИГРЫШ!</h2>
+          <p>Поздравляем с дропом!</p>
+        </div>
+      </div>
+
+      <div class="modal-body" style="align-items: center; text-align: center;">
+        <div class="result-items-grid" id="result-items-grid">
+          <!-- Карточки выпавших скинов -->
+        </div>
+
+        <div class="result-modal-actions">
+          <button class="btn btn-gold" id="btn-sell-result-drop">ПРОДАТЬ ВСЁ</button>
+          <button class="btn btn-primary" id="btn-keep-result-drop">В ИНВЕНТАРЬ</button>
+          <button class="btn btn-secondary" id="btn-upgrade-result-drop">⚡ В АПГРЕЙД</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== МОДАЛЬНОЕ ОКНО: ОБ ИГРЕ И ПРАВИЛА ==================== -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-content" style="max-width: 580px;">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <h2>ℹ️ ОБ ИГРЕ «ДРОП ДРОП»</h2>
+          <p>CS Battle Web Edition</p>
+        </div>
+        <button class="modal-close-btn" onclick="document.getElementById('about-modal').classList.remove('modal-active')">✕</button>
+      </div>
+      <div class="modal-body" style="font-size: 14px; color: var(--text-secondary); line-height: 1.6;">
+        <p><strong style="color: #fff;">«ДРОП ДРОП»</strong> — это реалистичный симулятор открытия кейсов и кейс-батлов по мотивам культового режима CS Battle.</p>
+        
+        <div style="background: var(--bg-card); padding: 14px; border-radius: 12px; border: 1px solid var(--border-color); margin: 12px 0;">
+          <h4 style="color: var(--accent-gold); margin-bottom: 8px;">🪙 Игровая валюта: ДРОПЫ</h4>
+          <p>Все расчеты в игре ведутся в виртуальных монетах 🪙. Все скины, цены и балансы являются исключительно виртуальной симуляцией внутри игры. Игра является симулятором и не связана с Valve Corp. Скины и монеты не могут быть выведены в Steam или реальный мир.</p>
+        </div>
+
+        <h4 style="color: #fff; margin-top: 14px; margin-bottom: 6px;">Режимы игры:</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+          <li><strong>📦 Кейсы:</strong> открывайте от 1 до 5 кейсов одновременно с плавной рулеткой.</li>
+          <li><strong>⚔️ Кейс Батлы:</strong> создавайте дуэли 1 на 1 и 1 на 1 на 1, где победитель забирает весь банк! Включает классический и сумасшедший (Crazy) режимы.</li>
+          <li><strong>⚡ Апгрейдер:</strong> улучшайте монеты до любого желанного скина на круговом колесе.</li>
+          <li><strong>📜 Контракты:</strong> обменивайте от 3 до 10 скинов на предмет более высокой редкости.</li>
+        </ul>
+
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted);">Версия 1.0.0 (Yandex Games Ready)</span>
+          <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 14px;" onclick="if(confirm('Сбросить весь прогресс и баланс?')){localStorage.removeItem('drop_drop_savedata');location.reload();}">Сбросить данные</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Контейнер всплывающих уведомлений -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Скрипты игры -->
+  <script src="js/skins-data.js"></script>
+  <script src="js/cases-data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/yandex-sdk.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/roulette.js"></script>
+  <script src="js/battles.js"></script>
+  <script src="js/upgrader.js"></script>
+  <script src="js/contracts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
