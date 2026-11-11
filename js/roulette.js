@@ -14,10 +14,8 @@ class RouletteEngine {
     this.fastOpen = false;
     this.multiCount = 1; // 1, 2, 3, 4, 5
     this.currentCase = null;
-    this.itemWidth = 140; // Ширина карточки скина в рулетке
-    this.itemGap = 12; // Отступ
-    this.totalItems = 42; // Всего скинов на полосе
-    this.winIndex = 36; // Индекс победного предмета
+    this.totalItems = 80; // Всего скинов на полосе (хватает для любых широких и мобильных экранов)
+    this.winIndex = 52; // Индекс победного предмета (52 предмета прокрутки + 28 в запасе справа)
     this.lastDropResults = [];
   }
 
@@ -113,24 +111,46 @@ class RouletteEngine {
 
     // Запускаем анимацию прокрутки
     const duration = this.fastOpen ? 1.2 : 5.5; // Секунды
-    const cardStep = this.itemWidth + this.itemGap;
 
     // Звуковые щелчки с замедлением
     this.startTickAudio(duration);
 
-    // Рассчитываем смещение
-    // Дожидаемся кадра для применения стилей
-    await new Promise(r => requestAnimationFrame(r));
-
+    // 1. Устанавливаем дорожки в исходную позицию без анимации
     spinsData.forEach(s => {
       const container = document.getElementById(s.id);
       if (!container) return;
       const track = container.querySelector('.roulette-track');
-      const containerWidth = container.offsetWidth || 800;
+      if (track) {
+        track.style.transition = 'none';
+        track.style.transform = 'translateX(0px)';
+      }
+    });
 
-      // Центрируем выигрышный элемент + небольшой случайный сдвиг (-25px..+25px)
-      const randomJitter = (Math.random() - 0.5) * 50;
-      const targetPos = (this.winIndex * cardStep) - (containerWidth / 2) + (this.itemWidth / 2) + randomJitter;
+    // 2. Двойной RAF гарантирует, что браузер завершил render, layout и знает точные размеры
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // 3. Вычисляем физические координаты выигрышной карточки прямо из DOM
+    spinsData.forEach(s => {
+      const container = document.getElementById(s.id);
+      if (!container) return;
+      const track = container.querySelector('.roulette-track');
+      if (!track) return;
+
+      const winnerCard = container.querySelector('.winner-target');
+      // offsetLeft возвращает реальное физическое положение победителя в пикселях с учетом отступов
+      const cardLeft = winnerCard ? winnerCard.offsetLeft : (this.winIndex * 132 + 10);
+      const cardWidth = winnerCard ? winnerCard.offsetWidth : 120;
+      const containerWidth = container.clientWidth || container.offsetWidth || 360;
+
+      const cardCenter = cardLeft + (cardWidth / 2);
+      const containerCenter = containerWidth / 2;
+
+      // Безопасный случайный джиттер: не более 18% от центра карточки,
+      // стрелка всегда указывает строго на победителя
+      const maxJitter = cardWidth * 0.18;
+      const randomJitter = (Math.random() - 0.5) * (maxJitter * 2);
+
+      const targetPos = Math.round(cardCenter - containerCenter + randomJitter);
 
       track.style.transition = `transform ${duration}s cubic-bezier(0.12, 0.82, 0.25, 1)`;
       track.style.transform = `translateX(-${targetPos}px)`;
